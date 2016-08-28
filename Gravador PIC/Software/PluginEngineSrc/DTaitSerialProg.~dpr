@@ -1,0 +1,131 @@
+library DTaitSerialProg;
+
+
+{ Remarque importante concernant la gestion de mémoire de DLL : ShareMem doit
+  être la première unité de la clause USES de votre bibliothèque ET de votre projet
+  (sélectionnez Projet-Voir source) si votre DLL exporte des procédures ou des
+  fonctions qui passent des chaînes en tant que paramètres ou résultats de fonction.
+  Cela s'applique à toutes les chaînes passées de et vers votre DLL --même celles
+  qui sont imbriquées dans des enregistrements et classes. ShareMem est l'unité
+  d'interface pour le gestionnaire de mémoire partagée BORLNDMM.DLL, qui doit
+  être déployé avec vos DLL. Pour éviter d'utiliser BORLNDMM.DLL, passez les
+  informations de chaînes avec des paramètres PChar ou ShortString. }
+
+uses
+  SysUtils,
+  Classes,
+  Forms,
+  Controls,
+  Dialogs,
+  unDTaitSerialProgSetting in 'unDTaitSerialProgSetting.pas' {frmDTaitSerialProgSetting};
+
+{$R *.res}
+
+const
+
+  PROG_NAME  = 'David Tait Serial Programmer'; // The programmer name (will appear in ICProg
+                                 // hadrware Menu
+
+  REQ_ICPROG_VER = '105';        // required min ICProg version
+
+
+function IsICProgAddon() : boolean; stdcall;
+begin
+  result := True;
+end;
+
+function GetProgrammerName() : Pchar; stdcall;
+begin
+  result := Pchar(PROG_NAME);
+end;
+
+function InitDll() : boolean; stdcall;
+begin
+  // do init stuff (global vars can be initialised/allocated here)
+  ShowMessage(PROG_NAME + ' has been initialized !');
+  result := True;
+end;
+
+function DoneDll() : boolean; stdcall;
+begin
+  // do prepare to quit DLL (Global vars can be Freed here)
+  ShowMessage(PROG_NAME + ' has been ShutDown !');
+  result := True;
+end;
+
+
+function SetupProgrammer(AppHandle : THandle) : integer; stdcall;
+var FrmProgSetup : TfrmDTaitSerialProgSetting;
+    oldAppHnd    : THandle;
+begin
+  //PS.  we must pass the calling application Handle because the DLL and the Main
+  //Program does not share the same TApplication object, so to make the ProgSetting
+  //Form MODAL we must pass it the Main Application Handle as Owner
+  oldAppHnd := Application.Handle;
+  Application.Handle := AppHandle;
+  FrmProgSetup := TfrmDTaitSerialProgSetting.Create(Application);
+  try
+    if FrmProgSetup.ShowModal = mrOK then begin
+      ShowMessage('Config accepted and Saved');
+      result := 0;
+    end
+    else begin
+      ShowMessage('You cancelled the Config Box');
+      result := -1;
+    end;
+  finally
+    FrmProgSetup.Free;
+    Application.Handle := oldAppHnd;
+  end;
+end;
+
+// Called by ICProg each time the user selects a new chip (and at startup)
+Procedure SetActualChip( aChipName : PChar );stdcall; // 0 = Low, 1 = High
+begin
+end;
+
+procedure SetMCLR( aState : Integer); stdcall; // 0 = Low, 1 = High
+begin
+end;
+
+procedure SetDataOut( aState : Integer); stdcall; // 0 = Low, 1 = High
+begin
+end;
+
+procedure SetClock( aState : Integer); stdcall; // 0 = Low, 1 = High
+begin
+end;
+
+function GetData() : integer; stdcall;
+begin
+  result := 1; //get data pin
+end;
+
+procedure PowerOn(); stdcall;
+begin
+end;
+
+procedure PowerOff(); stdcall;
+begin
+end;
+
+exports
+// EVERY Programmer DLL MUST exports these functions/Procedures
+// PS. No function should return or have a STRING parameters
+// All String MUST be passed as PChar to avoid the use of Borland ShareMem.dll
+// and to permit the creation of prog dll usin other languages such as VisualC++
+  IsICProgAddon,
+  GetProgrammerName,
+  InitDll,
+  DoneDll,
+  SetupProgrammer,
+  SetActualChip,
+  SetMCLR,
+  SetDataOut,
+  SetClock,
+  GetData,
+  PowerOn,
+  PowerOff;
+
+begin
+end.
